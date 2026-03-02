@@ -69,12 +69,16 @@ log "输出文件：$OUTPUT_FILE"
 # 使用 -p 参数进入非交互模式，自动调用 morning-post-generator 技能
 PROMPT="请使用 morning-post-generator 技能，为 ${TOMORROW_DISPLAY} 生成早安公众号推文。
 要求：
-1. 严格按照 SKILL.md 中定义的板块结构生成内容
-2. 必须执行人性化改写，去除所有 AI 痕迹
-3. 质量自检评分必须达到 40/50 以上
-4. 将文件保存为 ${OUTPUT_FILE}
-5. 使用 wenyan publish -f ${OUTPUT_FILE} -t ${WENYAN_THEME} 推送至公众号草稿箱
-6. 将发布结果（成功/失败、Media ID）记录到 ${LOG_FILE}"
+1. 严格按照元气补给站风格，生成6-10条可直接复制发朋友圈的短文案
+2. 标题必须用引号包裹+emoji，包含利益钩子（点赞/暴涨/秒赞等）
+3. 开头使用特殊装饰字体（如 ᴳᴼᴼᴰ ᴹᴼᴿᴺᴵᴺᴳ☼）
+4. 每条文案2-4句短句，口语化，有节奏感，像跟朋友聊天
+5. 必须执行人性化改写，去除所有AI痕迹（禁用词检查+口语化处理）
+6. 质量自检评分必须达到 43/50 以上
+7. 结尾加互动引导语（点赞关注类）
+8. 将文件保存为 ${OUTPUT_FILE}
+9. 使用 wenyan publish -f ${OUTPUT_FILE} -t ${WENYAN_THEME} 推送至公众号草稿箱
+10. 将发布结果（成功/失败、Media ID）记录到 ${LOG_FILE}"
 
 log "正在调用 Claude Code 生成文案..."
 
@@ -98,8 +102,20 @@ if [ -f "$OUTPUT_FILE" ]; then
     
     log "格式检查：H1=${H1_COUNT} H2=${H2_COUNT} H3=${H3_COUNT} 字节数=${WORD_COUNT}"
     
-    if [ "$H1_COUNT" -lt 1 ] || [ "$H2_COUNT" -lt 3 ] || [ "$H3_COUNT" -lt 2 ]; then
-        log "警告：Markdown 层级结构不符合要求（需要 >=1个H1, >=3个H2, >=2个H3）"
+    if [ "$H1_COUNT" -lt 1 ] || [ "$H2_COUNT" -lt 6 ]; then
+        log "警告：Markdown 层级结构不符合要求（需要 >=1个H1, >=6个H2编号段）"
+    fi
+    
+    # 检查是否包含互动引导语
+    GUIDE_COUNT=$(grep -c "点赞\|关注\|在看\|❤️\|💖\|🧡" "$OUTPUT_FILE" || true)
+    if [ "$GUIDE_COUNT" -lt 1 ]; then
+        log "警告：文章末尾缺少互动引导语"
+    fi
+    
+    # 检查AI味词汇残留
+    AI_WORDS=$(grep -c "此外\|至关重要\|深入探讨\|不断演变\|充满活力\|综上所述\|值得注意\|毋庸置疑" "$OUTPUT_FILE" || true)
+    if [ "$AI_WORDS" -gt 0 ]; then
+        log "警告：检测到 ${AI_WORDS} 处AI味词汇残留，请检查"
     fi
 else
     log "错误：文件未生成 $OUTPUT_FILE"
